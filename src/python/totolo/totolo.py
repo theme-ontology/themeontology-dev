@@ -8,13 +8,12 @@ required for that purpose.
 """
 import codecs
 import os.path
-import re
-from collections import defaultdict, deque
+from collections import defaultdict
 
 import lib.files
 import lib.textformat
 
-from .impl.parser import TOParser, TOStory, TOTheme
+from .impl import TOParser, TOStory, TOTheme
 
 
 class ThemeOntology(object):
@@ -61,8 +60,9 @@ class ThemeOntology(object):
                 elif path.endswith(".st.txt"):
                     self.read_stories(fh, path)
                 else:
-                    raise ValueError("Path must end with .th.txt ot .st.txt to indicate whether it contains themes"
-                                     " or stories.")
+                    raise ValueError(
+                        "Path must end with .th.txt ot .st.txt to indicate whether it" 
+                        "contains themes or stories.")
 
     def read_stories(self, lines, path="<api>"):
         """
@@ -107,7 +107,8 @@ class ThemeOntology(object):
                 for warning in entry.validate():
                     yield u"{}: {}".format(path, warning)
                 if entry.name in lookup[type(entry)]:
-                    yield u"{}: Multiple {} with name '{}'".format(path, type(entry), entry.name)
+                    yield u"{}: Multiple {} with name '{}'".format(
+                        path, type(entry), entry.name)
 
         # detect undefined themes used in stories
         for story in self.stories():
