@@ -1,19 +1,40 @@
 # Copyright 2021, themeontology.org
-# Tests:
-#   tests.test_themeontology
 """
 This module shall contain all definitions required to parse data in
-https://github.com/theme-ontology/theming and contain nothing that is not
-required for that purpose.
+https://github.com/theme-ontology/theming and contain nothing that is not required for 
+that purpose. It shall have no external dependencies that aren't bundled with the
+official Python versions supported.
 """
 import codecs
 import os.path
 from collections import defaultdict
 
-import lib.files
-import lib.textformat
+import totolo.lib.files
+import totolo.lib.git
+import totolo.lib.textformat
+from totolo.impl import TOParser, TOStory, TOTheme
 
-from .impl import TOParser, TOStory, TOTheme
+DEFAULT_URL = "https://github.com/theme-ontology/theming"
+
+
+def fetch(url=DEFAULT_URL):
+    if any(url.endswith(x) for x in [".tar", ".tar.gz"]):
+        with totolo.lib.files.remote_tar(url) as dirname:
+            to = read(dirname, imply_collection=True)
+    else:
+        with totolo.lib.git.remote_headversion(url) as dirname:
+            to = read(dirname, imply_collection=True)
+    return to
+
+
+def read(paths=None, imply_collection=False):
+    return ThemeOntology(paths, imply_collection=imply_collection)
+
+
+def empty():
+    return ThemeOntology()
+
+
 
 
 class ThemeOntology(object):
@@ -51,7 +72,7 @@ class ThemeOntology(object):
             path: a file or directory path
         """
         if os.path.isdir(path):
-            for filepath in lib.files.walk(path, r".*\.(st|th)\.txt$"):
+            for filepath in totolo.lib.files.walk(path, r".*\.(st|th)\.txt$"):
                 self.read(filepath)
         else:
             with codecs.open(path, "r", encoding='utf-8') as fh:
@@ -165,10 +186,3 @@ class ThemeOntology(object):
         for msg in self.validate():
             print(msg)
 
-
-def read(paths=None, imply_collection=False):
-    return ThemeOntology(paths, imply_collection=imply_collection)
-
-
-def empty():
-    return ThemeOntology()

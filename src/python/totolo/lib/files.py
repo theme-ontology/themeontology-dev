@@ -1,12 +1,23 @@
+import contextlib
 import os
 import os.path
 import re
+import tarfile
+import tempfile
+import urllib.request
+from io import BytesIO
 
 
-def walk(path, pattern=".*", levels=-1, onlyfiles=True):
-    """
-    Find files whose name matches a pattern up to a given depth.
-    """
+@contextlib.contextmanager
+def remote_tar(url: str):
+    with tempfile.TemporaryDirectory() as dirname:
+        with urllib.request.urlopen(url) as response:
+            with tarfile.open(name=None, fileobj=BytesIO(response.read())) as tar:
+                tar.extractall(dirname)
+        yield dirname
+
+
+def walk(path:str, pattern:str=".*", levels:int=-1, onlyfiles:bool=True):
     r = re.compile(pattern)
     # yield matching files
     for item in os.listdir(path):
