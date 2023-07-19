@@ -1,16 +1,13 @@
-from .parser import TOParser
+from .core import TOObject, a
 from .keyword import TOKeyword
 
 
-class TOField:
-    def __init__(self, lines=None, fieldconfig=None, name=''):
-        self.name = name
-        self.source = []
-        self.data = []
-        self.fieldconfig = fieldconfig or {}
-        self.parts = []
-        if lines:
-            self.populate(lines)
+class TOField(TOObject):
+    name = a("")
+    fieldtype = a("")
+    source = a([])
+    data = a([])
+    parts = a([])
 
     def __repr__(self):
         return "{}<{}>[{}]".format(
@@ -25,29 +22,6 @@ class TOField:
     def __iter__(self):
         for part in self.iter_parts():
             yield part
-
-    def populate(self, lines):
-        """
-        Interpret a list of text lines as a "field", assuming they conform
-        to the required format.
-        Args:
-            lines: list of strings
-        """
-        self.source.extend(lines)
-        self.name = lines[0].strip(": ")
-        self.data = lines[1:]
-        self.parts = []
-        fieldtype = self.fieldconfig.get("type", "blob")
-        if fieldtype == "kwlist":
-            for kwtuple in TOParser.iter_kwitems(self.data):
-                self.parts.append(TOKeyword(*kwtuple))
-        elif fieldtype == "list":
-            for item in TOParser.iter_listitems(self.data):
-                self.parts.append(item)
-        elif fieldtype == "text":
-            self.parts.append(lib.textformat.add_wordwrap("\n".join(self.data)).strip())
-        else:
-            self.parts.append('\n'.join(self.data))
 
     def iter_parts(self):
         """
@@ -110,4 +84,12 @@ class TOField:
         """
         if idx is None:
             idx = len(self.parts)
-        self.parts.insert(idx, TOKeyword(keyword, capacity=capacity, motivation=motivation, notes=notes))
+        self.parts.insert(
+            idx,
+            TOKeyword(
+                keyword,
+                capacity=capacity,
+                motivation=motivation,
+                notes=notes
+            )
+        )

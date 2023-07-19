@@ -1,45 +1,17 @@
+from .core import sa
 from .entry import TOEntry
 
 
-THEME_FIELD_CONFIG = {
-    "Description": {"type": "text", "required": True},
-    "Parents": {"type": "list"},
-    "References": {"type": "list"},
-    "Examples": {"type": "text"},
-    "Notes": {"type": "text"},
-    "Aliases": {"type": "list"},
-    "Template": {"type": "blob"},
-}
-
-THEME_FIELD_ORDER = [
-    "Description",
-    "Parents",
-    "Notes",
-    "Examples",
-    "References",
-    "Aliases",
-    "Template",
-]
-
-
 class TOTheme(TOEntry):
-    def __init__(self, lines=None):
-        self.cfg = THEME_FIELD_CONFIG
-        self.order = THEME_FIELD_ORDER
-        super(TOTheme, self).__init__(lines=lines)
-
-    def setup(self):
-        """
-        This should be called after the ontology has been populated, to link entries
-        to each other where appropriate.
-        """
-        pass
+    Description = sa("text", required=True)
+    Parents = sa("list")
+    Notes = sa("text")
+    Examples = sa("text")
+    References = sa("list")
+    Aliases = sa("list")
+    Template = sa("blob")
 
     def verbose_description(self):
-        """
-        A description that combines various other fields, including Notes, Examples,
-        Aliases, and References.
-        """
         description = str(self.get("Description"))
         examples = str(self.get("Examples")).strip()
         aliases = str(self.get("Aliases")).strip()
@@ -60,9 +32,6 @@ class TOTheme(TOEntry):
         return description
 
     def html_description(self):
-        """
-        Turn the verbose description into html.
-        """
         import html
         description = html.escape(str(self.get("Description")))
         examples = html.escape(str(self.get("Examples")).strip())
@@ -92,9 +61,6 @@ class TOTheme(TOEntry):
         return description
 
     def html_short_description(self):
-        """
-        A limited length short description without embelishments like "references".
-        """
         import html
         description = str(self.get("Description"))[:256]
         return html.escape(description)

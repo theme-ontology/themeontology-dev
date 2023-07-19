@@ -1,50 +1,25 @@
 import re
+
+from .core import sa
 from .entry import TOEntry
 
 
-STORY_FIELD_CONFIG = {
-    "Title": {"type": "text"},
-    "Date": {"type": "date"},
-    "Authors": {"type": "blob"},
-    "Variation": {"type": "blob"},
-    "Description": {"type": "text"},
-    "References": {"type": "list"},
-    "Ratings": {"type": "list"},
-    "Choice Themes": {"type": "kwlist"},
-    "Major Themes": {"type": "kwlist"},
-    "Minor Themes": {"type": "kwlist"},
-    "Not Themes": {"type": "kwlist"},
-    "Other Keywords": {"type": "kwlist"},
-    "Collections": {"type": "list"},
-    "Component Stories": {"type": "list"},
-    "Related Stories": {"type": "list"},
-}
-
-STORY_FIELD_ORDER = [
-    "Title",
-    "Date",
-    "Description",
-    "Authors",
-    "Variation",
-    "References",
-    "Genre",
-    "Ratings",
-    "Collections",
-    "Component Stories",
-    "Related Stories",
-    "Choice Themes",
-    "Major Themes",
-    "Minor Themes",
-    "Not Themes",
-    "Other Keywords",
-]
-
-
 class TOStory(TOEntry):
-    def __init__(self, lines=None):
-        self.cfg = STORY_FIELD_CONFIG
-        self.order = STORY_FIELD_ORDER
-        super(TOStory, self).__init__(lines=lines)
+    Title = sa("text")
+    Date = sa("date")
+    Description = sa("text")
+    Authors = sa("blob")
+    Variation = sa("blob")
+    References = sa("list")
+    Ratings = sa("list")
+    Collections = sa("list")
+    Component_Stories = sa("list")
+    Related_Stories = sa("list")
+    Choice_Themes = sa("kwlist")
+    Major_Themes = sa("kwlist")
+    Minor_Themes = sa("kwlist")
+    Not_Themes = sa("kwlist")
+    Other_Keywords = sa("kwlist")
 
     def iter_theme_entries(self):
         """
@@ -74,7 +49,7 @@ class TOStory(TOEntry):
         If this function returns zero for a story the story's data entry is considered to be faulty.
         """
         date = self.date
-        yearmatch = re.match("\d+", date)
+        yearmatch = re.match("\\d+", date)
         if not yearmatch:
             return 0
         year = int(yearmatch.group())

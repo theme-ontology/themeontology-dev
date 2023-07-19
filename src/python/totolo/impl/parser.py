@@ -1,10 +1,20 @@
+import os
 import re
-from typing import Iterable, Generator, List, Tuple
+from typing import Generator, Iterable, List, Tuple
+
+import totolo.lib.files
+import totolo.lib.git
+import totolo.lib.textformat
+
+from .field import TOField
+from .keyword import TOKeyword
+from .story import TOStory
+from .theme import TOTheme
 
 
 class TOParser:
-    @classmethod
-    def iter_entries(cls, lines: Iterable[str]) -> Generator[str, None, None]:
+    @staticmethod
+    def iter_entries(lines: Iterable[str]) -> Generator[str, None, None]:
         """
         Iterate through the "entries" in a text file. An entry is a block of lines
         that starts with a title line, followed by a line starting with "===".
@@ -21,8 +31,8 @@ class TOParser:
         if linebuffer and any(line for line in linebuffer):
             yield linebuffer
 
-    @classmethod
-    def iter_fields(cls, lines: Iterable[str]) -> List[str]:
+    @staticmethod
+    def iter_fields(lines: Iterable[str]) -> List[str]:
         """
         Iterate through the fields of an entry. Fields are blocks starting with ::
         """
@@ -37,27 +47,26 @@ class TOParser:
         if linebuffer:
             yield linebuffer
 
-    @classmethod
-    def iter_listitems(cls, lines: Iterable[str]) -> str:
+    @staticmethod
+    def iter_listitems(lines: Iterable[str]) -> str:
         """
         Turn a list of strings into items. Items may be newline or comma separated.
         """
         for line in lines:
-            # note: once upon a time we used to have multiple items separated by commas 
+            # note: once upon a time we used to have multiple items separated by commas
             # on a single line but that is no longer permitted.
             item = line.strip()
             if item:
                 yield item
 
-    @classmethod
+    @staticmethod
     def iter_kwitems(
-        cls, lines: Iterable[str]
+        lines: Iterable[str]
     ) -> Generator[Tuple[str, str, str, str], None, None]:
         """
-        Turn a list of strings into kewyword items. Items may be newline or comma 
+        Turn a list of strings into kewyword items. Items may be newline or comma
         separated. Items may contain data in () [] {} parentheses.
         """
-
         def dict2row(tokendict):
             tkw = tokendict.get("", "").strip()
             tmotivation = tokendict.get("[", "").strip()
@@ -68,7 +77,7 @@ class TOParser:
         field = "\n".join(lines)
         token = {}
         delcorr = {"[": "]", "{": "}", "<": ">"}
-        farr = re.split("([\[\]\{\}\<\>,\\n])", field)
+        farr = re.split("([\\[\\]\\{\\}\\<\\>,\\n])", field)
         state = ""
         splitters = ",\n"
 
@@ -95,3 +104,124 @@ class TOParser:
         tokrow = dict2row(token)
         if tokrow[0].strip():
             yield dict2row(token)
+
+    @classmethod
+    def populate_entry(cls, entry, lines):
+        entry.source.extend(lines)
+        cleaned = []
+        for line in lines:
+            cline = line.strip()
+            if cline or (cleaned and cleaned[-1]):
+                cleaned.append(cline)  # no more than one blank line in a row
+        assert len(cleaned) > 1 and cleaned[1].startswith("==="), "missing name"
+        while cleaned and not cleaned[-1]:
+            cleaned.pop()
+        entry.name = cleaned[0]
+        for fieldlines in cls.iter_fields(cleaned):
+            while fieldlines and not fieldlines[-1]:
+                fieldlines.pop()
+            name = fieldlines[0].strip(": ")
+            fieldtype = entry.field_type(name)
+            field = cls.make_field(fieldlines, fieldtype)
+            entry.fields.append(field)
+            entry[field.name] = field.data
+        return entry
+
+    @classmethod
+    def make_story(cls, lines):
+        return cls.populate_entry(TOStory(), lines)
+
+    @classmethod
+    def make_theme(cls, lines):
+        return cls.populate_entry(TOTheme(), lines)
+
+    @classmethod
+    def make_field(cls, lines, fieldtype):
+        field = TOField(
+            fieldtype=fieldtype,
+            name=lines[0].strip(": "),
+            data=lines[1:],
+            source=list(lines),
+        )
+        if fieldtype == "kwlist":
+            for kwtuple in TOParser.iter_kwitems(field.data):
+                field.parts.append(TOKeyword(*kwtuple))
+        elif fieldtype == "list":
+            for item in TOParser.iter_listitems(field.data):
+                field.parts.append(item)
+        elif fieldtype == "text":
+            field.parts.append(
+                totolo.lib.textformat.add_wordwrap(
+                    "\n".join(
+                        field.data)).strip())
+        else:
+            field.parts.append('\n'.join(field.data))
+        return field
+
+    @classmethod
+    def add_url(cls, to, url):
+        if any(url.endswith(x) for x in [".tar", ".tar.gz"]):
+            with totolo.lib.files.remote_tar(url) as dirname:
+                cls.add_files(to, dirname)
+        else:
+            with totolo.lib.git.remote_headversion(url) as dirname:
+                cls.add_files(to, dirname)
+        return to
+
+    @classmethod
+    def add_files(cls, to, paths):
+        if isinstance(paths, str):
+            paths = [paths]
+        for path in paths:
+            if os.path.isdir(path):
+                for filepath in totolo.lib.files.walk(path, r".*\.(st|th)\.txt$"):
+                    cls.add_file(to, filepath)
+            else:
+                cls.add_file(to, path)
+        return to
+
+    @classmethod
+    def add_file(cls, to, path):
+        target = {}
+        with open(path, "r", encoding='utf-8') as fh:
+            entry_iterable = []
+            if path.endswith(".th.txt"):
+                entry_iterable = cls.parse_themes(fh)
+                target = to.theme
+            elif path.endswith(".st.txt"):
+                entry_iterable = cls.parse_stories(fh)
+                target = to.story
+            for entry in entry_iterable:
+                entry.source_location = path
+                entry.ontology = to
+                to.entries[path].append(entry)
+                target[entry.name] = entry
+        return to
+
+    @classmethod
+    def parse_themes(cls, lines):
+        entries = []
+        if isinstance(lines, str):
+            lines = lines.splitlines()
+        for _idx, entrylines in enumerate(TOParser.iter_entries(lines)):
+            entry = cls.make_theme(entrylines)
+            entries.append(entry)
+        return entries
+
+    @classmethod
+    def parse_stories(cls, lines):
+        collection_entry = None
+        entries = []
+        if isinstance(lines, str):
+            lines = lines.splitlines()
+        for idx, entrylines in enumerate(TOParser.iter_entries(lines)):
+            entry = cls.make_story(entrylines)
+            if idx == 0:
+                mycols = entry.get("Collections").parts
+                if mycols and mycols[0] == entry.sid:
+                    collection_entry = entry
+            if idx > 0 and collection_entry:
+                field = collection_entry.get("Component Stories")
+                field.parts.append(entry.sid)
+            entries.append(entry)
+        return entries
