@@ -3,8 +3,8 @@ from .core import TOObject, a
 
 class TOKeyword(TOObject):
     keyword = a("")
-    motivation = a("")
     capacity = a("")
+    motivation = a("")
     notes = a("")
 
     def __str__(self):

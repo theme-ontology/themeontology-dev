@@ -106,36 +106,6 @@ class TOParser:
             yield dict2row(token)
 
     @classmethod
-    def populate_entry(cls, entry, lines):
-        entry.source.extend(lines)
-        cleaned = []
-        for line in lines:
-            cline = line.strip()
-            if cline or (cleaned and cleaned[-1]):
-                cleaned.append(cline)  # no more than one blank line in a row
-        assert len(cleaned) > 1 and cleaned[1].startswith("==="), "missing name"
-        while cleaned and not cleaned[-1]:
-            cleaned.pop()
-        entry.name = cleaned[0]
-        for fieldlines in cls.iter_fields(cleaned):
-            while fieldlines and not fieldlines[-1]:
-                fieldlines.pop()
-            name = fieldlines[0].strip(": ")
-            fieldtype = entry.field_type(name)
-            field = cls.make_field(fieldlines, fieldtype)
-            entry.fields.append(field)
-            entry[field.name] = field.data
-        return entry
-
-    @classmethod
-    def make_story(cls, lines):
-        return cls.populate_entry(TOStory(), lines)
-
-    @classmethod
-    def make_theme(cls, lines):
-        return cls.populate_entry(TOTheme(), lines)
-
-    @classmethod
     def make_field(cls, lines, fieldtype):
         field = TOField(
             fieldtype=fieldtype,
@@ -157,6 +127,67 @@ class TOParser:
         else:
             field.parts.append('\n'.join(field.data))
         return field
+
+    @classmethod
+    def populate_entry(cls, entry, lines):
+        entry.source.extend(lines)
+        cleaned = []
+        for line in lines:
+            cline = line.strip()
+            if cline or (cleaned and cleaned[-1]):
+                cleaned.append(cline)  # no more than one blank line in a row
+        assert len(cleaned) > 1 and cleaned[1].startswith("==="), "missing name"
+        while cleaned and not cleaned[-1]:
+            cleaned.pop()
+        entry.name = cleaned[0]
+        for fieldlines in cls.iter_fields(cleaned):
+            while fieldlines and not fieldlines[-1]:
+                fieldlines.pop()
+            name = fieldlines[0].strip(": ")
+            fieldtype = entry.field_type(name)
+            field = cls.make_field(fieldlines, fieldtype)
+            entry.fields.append(field)
+            if fieldtype in ("list", "kwlist"):
+                entry[field.name] = field.parts
+            elif fieldtype != "unknown":
+                entry[field.name] = field.text_canonical_contents().strip()
+        return entry
+
+    @classmethod
+    def make_story(cls, lines):
+        return cls.populate_entry(TOStory(), lines)
+
+    @classmethod
+    def make_theme(cls, lines):
+        return cls.populate_entry(TOTheme(), lines)
+
+    @classmethod
+    def parse_stories(cls, lines):
+        collection_entry = None
+        entries = []
+        if isinstance(lines, str):
+            lines = lines.splitlines()
+        for idx, entrylines in enumerate(TOParser.iter_entries(lines)):
+            entry = cls.make_story(entrylines)
+            if idx == 0:
+                mycols = entry.get("Collections").parts
+                if mycols and mycols[0] == entry.sid:
+                    collection_entry = entry
+            if idx > 0 and collection_entry:
+                field = collection_entry.get("Component Stories")
+                field.parts.append(entry.sid)
+            entries.append(entry)
+        return entries
+
+    @classmethod
+    def parse_themes(cls, lines):
+        entries = []
+        if isinstance(lines, str):
+            lines = lines.splitlines()
+        for _idx, entrylines in enumerate(TOParser.iter_entries(lines)):
+            entry = cls.make_theme(entrylines)
+            entries.append(entry)
+        return entries
 
     @classmethod
     def add_url(cls, to, url):
@@ -197,31 +228,3 @@ class TOParser:
                 to.entries[path].append(entry)
                 target[entry.name] = entry
         return to
-
-    @classmethod
-    def parse_themes(cls, lines):
-        entries = []
-        if isinstance(lines, str):
-            lines = lines.splitlines()
-        for _idx, entrylines in enumerate(TOParser.iter_entries(lines)):
-            entry = cls.make_theme(entrylines)
-            entries.append(entry)
-        return entries
-
-    @classmethod
-    def parse_stories(cls, lines):
-        collection_entry = None
-        entries = []
-        if isinstance(lines, str):
-            lines = lines.splitlines()
-        for idx, entrylines in enumerate(TOParser.iter_entries(lines)):
-            entry = cls.make_story(entrylines)
-            if idx == 0:
-                mycols = entry.get("Collections").parts
-                if mycols and mycols[0] == entry.sid:
-                    collection_entry = entry
-            if idx > 0 and collection_entry:
-                field = collection_entry.get("Component Stories")
-                field.parts.append(entry.sid)
-            entries.append(entry)
-        return entries
