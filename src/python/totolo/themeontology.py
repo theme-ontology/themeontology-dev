@@ -1,35 +1,17 @@
-# Copyright 2021, themeontology.org
-"""
-This package shall contain all definitions required to parse data in
-https://github.com/theme-ontology/theming and contain nothing that is not required for
-that purpose. It shall have no external dependencies that aren't bundled with the
-official Python versions supported.
-"""
 import codecs
+import random
 from collections import defaultdict
 
 from .impl.core import TOObject, a
-from .impl.parser import TOParser
-
-DEFAULT_URL = "https://github.com/theme-ontology/theming"
-
-
-def remote(url=DEFAULT_URL):
-    return TOParser.add_url(empty(), url)
-
-
-def files(paths=None):
-    return TOParser.add_files(empty(), paths)
-
-
-def empty():
-    return ThemeOntology()
 
 
 class ThemeOntology(TOObject):
     theme = a({})
     story = a({})
-    entries = a(defaultdict(list))
+    entries = a({})
+
+    def __len__(self):
+        return sum(len(v) for v in self.entries.values())
 
     def __str__(self):
         return f"<{len(self.theme)} themes, {len(self.story)} stories>"
@@ -42,14 +24,19 @@ class ThemeOntology(TOObject):
         for theme in self.theme.values():
             yield theme
 
+    def astory(self):
+        return random.sample(self.story.values(), 1)[0]
+
+    def atheme(self):
+        return random.sample(self.theme.values(), 1)[0]
+
     def validate(self):
         yield from self.validate_entries()
         yield from self.validate_storythemes()
         yield from self.validate_cycles()
 
     def validate_entries(self):
-        """Validate basic format of theme and story entries.
-        """
+        """Validate basic format of theme and story entries."""
         lookup = defaultdict(dict)
         for path, entries in self.entries.items():
             for entry in entries:
@@ -60,8 +47,7 @@ class ThemeOntology(TOObject):
                         path, type(entry), entry.name)
 
     def validate_storythemes(self):
-        """Detect undefined themes used in stories.
-        """
+        """Detect undefined themes used in stories."""
         for story in self.stories():
             for weight in ["choice", "major", "minor", "not"]:
                 field = "{} Themes".format(weight.capitalize())
@@ -71,8 +57,7 @@ class ThemeOntology(TOObject):
                             story.name, weight, kw.keyword)
 
     def validate_cycles(self):
-        """Detect cycle (stops after first cycle encountered).
-        """
+        """Detect cycles (stops after first cycle encountered)."""
         parents = {}
         for theme in self.themes():
             parents[theme.name] = [parent for parent in theme.get("Parents")]

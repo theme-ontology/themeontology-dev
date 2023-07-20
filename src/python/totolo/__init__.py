@@ -1,7 +1,8 @@
-from totolo.totolo import ThemeOntology, empty, files, remote
+from totolo.api import TORemote, empty, files
+
+remote = TORemote()
 
 __ALL__ = [
-    ThemeOntology,
     empty,
     files,
     remote,

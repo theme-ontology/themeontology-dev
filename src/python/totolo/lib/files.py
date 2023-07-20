@@ -17,7 +17,7 @@ def remote_tar(url: str):
         yield dirname
 
 
-def walk(path:str, pattern:str=".*", levels:int=-1, onlyfiles:bool=True):
+def walk(path: str, pattern: str = ".*", levels: int = -1):
     r = re.compile(pattern)
     # yield matching files
     for item in os.listdir(path):
@@ -31,4 +31,3 @@ def walk(path:str, pattern:str=".*", levels:int=-1, onlyfiles:bool=True):
         if os.path.isdir(spath) and levels != 0:
             for res in walk(spath, pattern, levels - 1):
                 yield res
-

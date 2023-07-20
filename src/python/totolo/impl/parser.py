@@ -3,13 +3,12 @@ import re
 from typing import Generator, Iterable, List, Tuple
 
 import totolo.lib.files
-import totolo.lib.git
 import totolo.lib.textformat
 
+from ..story import TOStory
+from ..theme import TOTheme
 from .field import TOField
 from .keyword import TOKeyword
-from .story import TOStory
-from .theme import TOTheme
 
 
 class TOParser:
@@ -191,12 +190,12 @@ class TOParser:
 
     @classmethod
     def add_url(cls, to, url):
-        if any(url.endswith(x) for x in [".tar", ".tar.gz"]):
+        suffixes = [".tar", ".tar.gz"]
+        if any(url.endswith(x) for x in suffixes):
             with totolo.lib.files.remote_tar(url) as dirname:
                 cls.add_files(to, dirname)
         else:
-            with totolo.lib.git.remote_headversion(url) as dirname:
-                cls.add_files(to, dirname)
+            raise ValueError(f"Expected url ending in one of {suffixes}")
         return to
 
     @classmethod
@@ -225,6 +224,7 @@ class TOParser:
             for entry in entry_iterable:
                 entry.source_location = path
                 entry.ontology = to
+                to.entries.setdefault(path, [])
                 to.entries[path].append(entry)
                 target[entry.name] = entry
         return to

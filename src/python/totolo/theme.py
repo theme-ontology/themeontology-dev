@@ -1,5 +1,5 @@
-from .core import sa
-from .entry import TOEntry
+from .impl.core import sa
+from .impl.entry import TOEntry
 
 
 class TOTheme(TOEntry):

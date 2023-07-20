@@ -17,7 +17,7 @@ class TOEntry(TOObject):
             len(self.fields)
         )
 
-    def iter_fields(self, reorder=False):
+    def iter_fields(self, reorder=False, skipunknown=False):
         lu = {f.name: f for f in self.fields}
         if reorder:
             order = [f for f, _ in self.iter_stored() if f in lu]
@@ -27,7 +27,7 @@ class TOEntry(TOObject):
             field = lu.get(fieldname, None)
             if field:
                 fieldtype = self.field_type(fieldname)
-                if fieldtype != "unknown":
+                if fieldtype != "unknown" or not skipunknown:
                     yield field
 
     def validate(self):
@@ -61,3 +61,6 @@ class TOEntry(TOObject):
         fieldtype = self.field_type(fieldname)
         self.fields.append(TOField(fieldtype=fieldtype, name=fieldname))
         return self.fields[-1]
+
+    def print(self):
+        print(self.text_canonical().strip())
